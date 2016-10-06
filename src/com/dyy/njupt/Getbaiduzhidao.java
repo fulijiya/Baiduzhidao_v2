@@ -3,10 +3,12 @@ package com.dyy.njupt;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
 import java.net.HttpURLConnection;
@@ -15,23 +17,32 @@ import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 
 public class Getbaiduzhidao {
 	public static final String LINE = System.getProperty("line.separator");
-	public static int id = 282520;
+	private static String QA_outpath = null;
+	public static int id = 282718;
 	static String accept = "";
-
+	static int count_userinfo = 0;
+	static HashSet<String> hs = new HashSet<String>();
 	public static void main(String[] args) throws IOException {
-		 for (int n = 1121032; n < Long.parseLong("100000000000000000"); n++) {
-		 addQA("http://zhidao.baidu.com/question/" + n + ".html");
-//		  addQA(" http://zhidao.baidu.com/question/1107908.html");
-		 }
+		for (int n = 1122914; n < Long.parseLong("100000000000000000"); n++) {
+			QA_outpath = "C:\\Users\\fulijiya\\Desktop\\spiderdata911\\QA_" + n / 100000+".txt";
+			addQA("http://zhidao.baidu.com/question/" + n + ".html", QA_outpath);
+//		addQA(" http://zhidao.baidu.com/question/1121185.html","C:\\Users\\fulijiya\\Desktop\\test.txt");
+//		File f=new File("C:\\Users\\fulijiya\\Desktop\\response.txt");
+//        f.createNewFile();
+//        FileOutputStream fileOutputStream = new FileOutputStream(f);
+//        PrintStream printStream = new PrintStream(fileOutputStream);
+//        System.setOut(printStream);
+//        String s=getResponse("http://zhidao.baidu.com/question/1121034.html");
+//        System.out.println(s);
+		}
 	}
-
 	// 类别map
 	static Map<Integer, String> classesmap = new HashMap<Integer, String>();
 
@@ -56,29 +67,31 @@ public class Getbaiduzhidao {
 	static Map<Integer, String> answermap = new HashMap<Integer, String>();
 
 	public static void answermap(String response) {
-		int start_pos_answerinfo = response.indexOf("qb-accuse-link");
+		int start_pos_answerinfo = response.indexOf("aContent");
 		start_pos_answerinfo = response.indexOf(">", start_pos_answerinfo);
-		int end_pos_answerinfo = response.indexOf("分享", start_pos_answerinfo);
-
+		int end_pos_answerinfo = response.indexOf("text/javascript", start_pos_answerinfo);
+      
 		for (int i = 0;; i++) {
 			String answerinfo = response.substring(start_pos_answerinfo, end_pos_answerinfo).trim();
 			answerinfo = answerinfo.substring(1, answerinfo.length()).trim();
 			answermap.put(i, answerinfo);
-			start_pos_answerinfo = response.indexOf("qb-accuse-link", end_pos_answerinfo);
+			start_pos_answerinfo = response.indexOf("aContent", end_pos_answerinfo);
 			if (start_pos_answerinfo == -1)
 				break;
 			start_pos_answerinfo = response.indexOf(">", start_pos_answerinfo);
-			end_pos_answerinfo = response.indexOf("分享", start_pos_answerinfo);
+			end_pos_answerinfo = response.indexOf("text/javascript", start_pos_answerinfo);
 		}
 
 	}
 
 	public static void getFromBaidu(String url, Writer writer, String outPath) throws IOException {
-
+		String indexfile="userinfo_"+count_userinfo / 100000+".txt";
+		outPath = outPath + "userinfo_" + count_userinfo / 100000+".txt";
 		Getbaiduzhidao getbaiduzhidao = new Getbaiduzhidao();
 		String response = getbaiduzhidao.getResponse(url);
+		
 		answermap(response);
-		if (response.contains("aContent")) {
+		if (response.contains("aContent")&&!response.contains("本回答由")&&!response.contains("热心网友")) {
 			writer.write("<QA>" + LINE);
 			// 问题所在URL
 			writer.write("<url>" + url + "</url>" + LINE);
@@ -123,7 +136,13 @@ public class Getbaiduzhidao {
 			if (!"".equals(asker)) {
 				writer.write("<user>" + asker + "</user>" + LINE);
 				// 收集提问人的信息，输出到文件
+				if(!hs.contains(asker)){
+				Index.index(asker, indexfile);
 				UserDetails.adduserinfo(asker, outPath);
+				hs.add(asker);
+				count_userinfo++;
+				}
+				
 			} else {
 				writer.write("<user>null</user>" + LINE);
 			}
@@ -134,21 +153,20 @@ public class Getbaiduzhidao {
 			// 提问发布时间ask-time
 			int start_asktime = response.indexOf("ask-time");
 			start_asktime = response.indexOf("f-pipe", start_asktime);
-			start_asktime = response.indexOf("<", start_asktime);
-			start_asktime = response.indexOf(">", start_asktime);
-			start_asktime = response.indexOf("<", start_asktime);
-			start_asktime = response.indexOf(">", start_asktime);
+			start_asktime = response.indexOf("2", start_asktime);		
 			int end_asktime = response.indexOf("<", start_asktime);
-			String asktime = response.substring(start_asktime + 1, end_asktime);
+			String asktime = response.substring(start_asktime, end_asktime);
 			writer.write("<ask-time>" + asktime + "</ask-time>" + LINE);
 			// 问题内容
 			try {
 				int start_question = response.indexOf("qContent");
 				start_question = response.indexOf(">", start_question);
-				int end_question = response.indexOf("</pre>", start_question);
+				start_question = response.indexOf("con", start_question);
+				start_question = response.indexOf(">", start_question);
+				int end_question = response.indexOf("</span>", start_question);
 				String question = response.substring(start_question + 1, end_question);
-				question = question.replaceAll("<img.*?>", "");
-				if (!"".equals(question) && !question.startsWith("<!--STATUS OK-->")) {
+				question = question.replaceAll("<img.*?>", "");			
+				if (!"".equals(question) && !question.trim().startsWith("<meta")) {
 					writer.write("<content>" + question + "</content>" + LINE);
 				} else {
 					writer.write("<content>null</content>" + LINE);
@@ -161,46 +179,50 @@ public class Getbaiduzhidao {
 
 			// ===========================================================================
 			// 针对没有网友采纳的页面
-			if (!response.contains("网友采纳") && !response.contains("提问者采纳")) {
+			if (!response.contains("最佳答案")) {
 				// 输出答案
-				writer.write("<answers>" + LINE);
-
+			
+				writer.write("<answers>" + LINE);      
 				Set<Integer> answerkey = answermap.keySet();
 				Iterator<Integer> itanswer = answerkey.iterator();
 				while (itanswer.hasNext()) {
 					writer.write("<answer>" + LINE);
 					int key = itanswer.next();
 					String answerdetails = answermap.get(key);
-					// 回答人id或者昵称
-					int start = answerdetails.indexOf("span");// 判断是否是热心网友
-					start = answerdetails.indexOf(">", start);
-					int end = answerdetails.indexOf("<", start);
-					String rexinwangyou = answerdetails.substring(start + 1, end);
-					if (!rexinwangyou.equals("热心网友")) {
+					// 回答人id或者昵称	
+					try{
 						int start_user = answerdetails.indexOf("user-name");
 						start_user = answerdetails.indexOf("target=\"_blank\"", start_user);
 						start_user = answerdetails.indexOf(">", start_user);
 						int end_user = answerdetails.indexOf("<", start_user);
 						String user = answerdetails.substring(start_user + 1, end_user);
-						writer.write("<user>" + user + "</user>" + LINE);
+						
 						// 收集回答者的信息
+						if(!hs.contains(user)){
+						Index.index(user, indexfile);
 						UserDetails.adduserinfo(user, outPath);
-					} else {
-						writer.write("<user>热心网友</user>" + LINE);
-					}
+						hs.add(user);
+						count_userinfo++;
+						}
+						writer.write("<user>" + user + "</user>" + LINE);
 					// <time>回答时间</time>
-					int start_time = answerdetails.indexOf("ins");
-					start_time = answerdetails.indexOf(">", start_time);
+					int start_time = answerdetails.indexOf("f-pipe");
+					start_time = answerdetails.indexOf("2", start_time);
 					int end_time = answerdetails.indexOf("<", start_time);
-					String time = answerdetails.substring(start_time + 1, end_time);
+					String time = answerdetails.substring(start_time, end_time);
 					writer.write("<time>" + time + "</time>" + LINE);
+					
+					
 					// <content>回答内容</content>
-					int start_content = answerdetails.indexOf("aContent");
-					start_content = answerdetails.indexOf("class=\"con\"");
+					int start_content = answerdetails.indexOf("con");
 					start_content = answerdetails.indexOf(">", start_content);
-					int end_content = answerdetails.indexOf("<", start_content);
-					String content = answerdetails.substring(start_content + 1, end_content);
-					writer.write("<content>" + content + "</content>" + LINE);
+					int end_content = answerdetails.indexOf("</span>", start_content);
+					String content = answerdetails.substring(start_content+1, end_content);
+					content=content.replaceAll("<.*.*?>", "").replaceAll("\\&quo", "")
+							.replaceAll("&quo", "").replaceAll("&", "")
+							.replaceAll("<", "");			
+					writer.write("<content>" + content + "</content>" + LINE);					
+					
 					// <good>好评数</good>
 					int start_good = answerdetails.indexOf("data-evaluate");
 					start_good = answerdetails.indexOf("=", start_good);
@@ -216,6 +238,9 @@ public class Getbaiduzhidao {
 					bad = bad.replaceAll("\"", "");
 					writer.write("<bad>" + bad + "</bad>" + LINE);
 					writer.write("</answer>" + LINE);
+				}catch(Exception e){
+						//
+					}
 				}
 				writer.write("</answers>" + LINE);
 				writer.write("</QA>" + LINE);
@@ -228,34 +253,38 @@ public class Getbaiduzhidao {
 				// 第一个回答
 				writer.write("<recommend>" + LINE);
 				writer.write("<answer>" + LINE);
-
-				// 网友采纳
-				if (response.contains("网友采纳")) {
-					int start_accept = response.indexOf("qb-accuse-link-recom");// 被采纳者回答信息
-					int end_accept = response.indexOf("其他类似问题", start_accept);
-					accept = response.substring(start_accept + 1, end_accept);
-				} else {
-					// 提问者采纳
-					int start_accept = response.indexOf("qb-accuse-link-best");// 被采纳者回答信息
-					int end_accept = response.indexOf("其他类似问题", start_accept);
+                   //最佳答案
+				if (response.contains("最佳答案")){
+					//最佳答案
+					int start_accept = response.indexOf("wgt-best");// 被采纳者回答信息
+					start_accept = response.indexOf("answer-time",start_accept);
+					start_accept = response.indexOf(">",start_accept);
+					int end_accept = response.indexOf("其他回答", start_accept);
 					accept = response.substring(start_accept + 1, end_accept);
 				}
+				try{
 				int start_acceptid = accept.indexOf("user-name");// 被采纳者的id
 				start_acceptid = accept.indexOf(">", start_acceptid);
 				int end_acceptid = accept.indexOf("<", start_acceptid);
 				String acceptid = accept.substring(start_acceptid + 1, end_acceptid);
-				// 回答者的id
+				// 回答者的id	
 				if (!acceptid.equals("")) {
 					writer.write("<user>" + acceptid + "</user>" + LINE);
+					if(!hs.contains(acceptid)){
+					Index.index(acceptid, indexfile);
 					UserDetails.adduserinfo(acceptid, outPath);
-				} else {
-					writer.write("<user>热心网友</user>" + LINE);
+					hs.add(acceptid);
+					count_userinfo++;
+					}
 				}
+				}catch (Exception e) {
+				//
+				}
+					
 				// 回答时间
-				int start_accepttime = accept.indexOf("ins");// 被采纳者回答时间
-				start_accepttime = accept.indexOf(">", start_accepttime);
+				int start_accepttime = accept.indexOf("2");
 				int end_accepttime = accept.indexOf("<", start_accepttime);
-				String accepttime = accept.substring(start_accepttime + 1, end_accepttime);
+				String accepttime = accept.substring(start_accepttime, end_accepttime);
 				writer.write("<time>" + accepttime + "</time>" + LINE);
 				// 回答内容
 				int start_acceptcontent = response.indexOf("aContent");
@@ -280,16 +309,14 @@ public class Getbaiduzhidao {
 				writer.write("<bad>" + acceptbad + "</bad>" + LINE);
 				writer.write("</answer>" + LINE);
 				writer.write("</recommend>" + LINE);
-
-				// 第二个回答
+               try{
+				// 第二个回答  	   
 				writer.write("<answer>" + LINE);
 				String secondanswer = answermap.get(1);
 				// 回答人id或者昵称
 				int start = secondanswer.indexOf("span");// 判断是否是热心网友
 				start = secondanswer.indexOf(">", start);
 				int end = secondanswer.indexOf("<", start);
-				String rexinwangyou = secondanswer.substring(start + 1, end);
-				if (!rexinwangyou.equals("热心网友")) {
 					int start_user = secondanswer.indexOf("user-name");
 					start_user = secondanswer.indexOf("target=\"_blank\"", start_user);
 					start_user = secondanswer.indexOf(">", start_user);
@@ -297,16 +324,18 @@ public class Getbaiduzhidao {
 					String user = secondanswer.substring(start_user + 1, end_user);
 					writer.write("<user>" + user + "</user>" + LINE);
 					// 收集回答者的信息
+					if(!hs.contains(user)){
+					Index.index(user, indexfile);
 					UserDetails.adduserinfo(user, outPath);
-				} else {
-					writer.write("<user>热心网友</user>" + LINE);
-				}
+					hs.add(user);
+					count_userinfo++;
+					}	
 				// <time>回答时间</time>
-				int start_time = secondanswer.indexOf("ins");
-				start_time = secondanswer.indexOf(">", start_time);
+				int start_time = secondanswer.indexOf("f-pipe");
+				start_time = secondanswer.indexOf("2", start_time);
 				int end_time = secondanswer.indexOf("<", start_time);
-				String time = secondanswer.substring(start_time + 1, end_time);
-				writer.write("<time>" + time + "</time>" + LINE);
+				String time = secondanswer.substring(start_time, end_time);
+				writer.write("<time>" + time + "</time>" + LINE);		
 				// <content>回答内容</content>
 				int start_content = secondanswer.indexOf("aContent");
 				start_content = secondanswer.indexOf("con", start_content);
@@ -330,7 +359,7 @@ public class Getbaiduzhidao {
 				bad = bad.replaceAll("\"", "");
 				writer.write("<bad>" + bad + "</bad>" + LINE);
 				writer.write("</answer>" + LINE);
-
+                
 				// 下面其他回答
 				for (int i = 2; i < answermap.size(); i++) {
 					writer.write("<answer>" + LINE);
@@ -338,25 +367,25 @@ public class Getbaiduzhidao {
 					String answerdetails = answermap.get(i);
 					start = answerdetails.indexOf("span");// 判断是否是热心网友
 					start = answerdetails.indexOf(">", start);
-					end = answerdetails.indexOf("<", start);
-					rexinwangyou = answerdetails.substring(start + 1, end);
-					if (!rexinwangyou.equals("热心网友")) {
-						int start_user = answerdetails.indexOf("user-name");
+					end = answerdetails.indexOf("<", start);				
+						start_user = answerdetails.indexOf("user-name");
 						start_user = answerdetails.indexOf("target=\"_blank\"", start_user);
 						start_user = answerdetails.indexOf(">", start_user);
-						int end_user = answerdetails.indexOf("<", start_user);
-						String user = answerdetails.substring(start_user + 1, end_user);
+						end_user = answerdetails.indexOf("<", start_user);
+						user = answerdetails.substring(start_user + 1, end_user);
 						writer.write("<user>" + user + "</user>" + LINE);
 						// 收集回答者的信息
+						if(!hs.contains(user)){
+						Index.index(user, indexfile);
 						UserDetails.adduserinfo(user, outPath);
-					} else {
-						writer.write("<user>热心网友</user>" + LINE);
-					}
+						hs.add(user);
+						count_userinfo++;
+						}				
 					// <time>回答时间</time>
-					start_time = answerdetails.indexOf("ins");
-					start_time = answerdetails.indexOf(">", start_time);
+					start_time = answerdetails.indexOf("f-pipe");
+					start_time = answerdetails.indexOf("2", start_time);
 					end_time = answerdetails.indexOf("<", start_time);
-					time = answerdetails.substring(start_time + 1, end_time);
+					time = answerdetails.substring(start_time, end_time);
 					writer.write("<time>" + time + "</time>" + LINE);
 					// <content>回答内容</content>
 					start_content = answerdetails.indexOf("aContent");
@@ -383,13 +412,16 @@ public class Getbaiduzhidao {
 				}
 				writer.write("</answers>" + LINE);
 				writer.write("</QA>" + LINE);
-				
+
+			}catch(Exception e){
+			System.out.println("无其他回答");	
+			}
 			}
 		}
 		answermap.clear();
 	}
 
-	public String getResponse(String url) {
+	public static String getResponse(String url) {
 		HttpURLConnection httpUrlConnection = null;
 		InputStream inputStream = null;
 		BufferedReader bufferedReader = null;
@@ -434,16 +466,16 @@ public class Getbaiduzhidao {
 		return html;
 	}
 
-	public static void addQA(String url) {
+	public static void addQA(String url, String QA_outpath) {
 		try {
 			// File f = new File("//home//yangyang//QA.txt");
-			File f = new File("C://Users//fulijiya//Desktop//QA.txt");
+			File f = new File(QA_outpath);
 
 			if (!f.exists())
 				f.createNewFile();
 			FileWriter fw = new FileWriter(f, true);
 			BufferedWriter bw = new BufferedWriter(fw);
-			getFromBaidu(url, bw, "C://Users//fulijiya//Desktop//userinfo.txt");
+			getFromBaidu(url, bw, "C:\\Users\\fulijiya\\Desktop\\spiderdata911\\");
 			// getFromBaidu(url, bw, "//home//yangyang//userinfo.txt");
 			bw.flush();
 			bw.close();

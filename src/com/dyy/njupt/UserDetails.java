@@ -15,19 +15,16 @@ import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
-
-import javax.swing.plaf.basic.BasicScrollPaneUI.HSBChangeListener;
 
 public class UserDetails {
 
 	public static final String LINE = System.getProperty("line.separator");
 	static List<String> tableList = new ArrayList<String>();
-	static HashSet<String> hs = new HashSet<String>(tableList);
+	
 
 	public static void main(String[] args) throws IOException {
-		adduserinfo("wxz178", "C://Users//fulijiya//Desktop//output.txt");
+		adduserinfo("alucard_tao", "C://Users//fulijiya//Desktop//output.txt");
 		// 毕达哥拉斯wxz178
 	}
 
@@ -81,32 +78,72 @@ public class UserDetails {
 			writer.write("<goods>" + a[5] + "</goods>" + LINE);
 			// 关注的分类
 			int start_attention_cates = response.indexOf("category");
-			start_attention_cates = response.indexOf("f-gray", start_attention_cates);
+			start_attention_cates = response.indexOf("关注的分类：",start_attention_cates);
+			start_attention_cates = response.indexOf("<",start_attention_cates);
+			char s=response.charAt(start_attention_cates+1);
+			String str = String.valueOf(s);
+			if(str.equals("a")){
+			start_attention_cates = response.indexOf("blank", start_attention_cates);
 			start_attention_cates = response.indexOf(">", start_attention_cates);
-			int end_attention_cates = response.indexOf("<", start_attention_cates);
-			String attention_cates = response.substring(start_attention_cates + 1, end_attention_cates);
+			int end_attention_cates = response.indexOf("</div>", start_attention_cates);
+			String attention_cates = response.substring(start_attention_cates + 1, end_attention_cates).replaceAll("<.*?>", "");
+			attention_cates=attention_cates.replaceAll("&nbsp", "");
 			writer.write("<attention_cates>" + attention_cates + "</attention_cates>" + LINE);
+			}else{
+				writer.write("<attention_cates>null</attention_cates>" + LINE);
+			}
+			
+			
+			
 			// 关注的关键词
 			int start_attention_words = response.indexOf("keyword-list");
-			start_attention_words = response.indexOf("f-gray", start_attention_words);
+			start_attention_words = response.indexOf("关注的关键词：",start_attention_words);
+			start_attention_words = response.indexOf("<",start_attention_words);
+			s=response.charAt(start_attention_words+1);
+			str = String.valueOf(s);
+			if(str.equals("a")){
+			start_attention_words = response.indexOf("blank", start_attention_words);
 			start_attention_words = response.indexOf(">", start_attention_words);
-			int end_attention_words = response.indexOf("<", start_attention_words);
-			String attention_words = response.substring(start_attention_words + 1, end_attention_words);
+			int end_attention_words = response.indexOf("</div>", start_attention_words);
+			String attention_words = response.substring(start_attention_words + 1, end_attention_words).replaceAll("<.*?>", "");
+			attention_words=attention_words.replaceAll("&nbsp", "");
 			writer.write("<attention_words>" + attention_words + "</attention_words>" + LINE);
+			}else{
+				writer.write("<attention_words>null</attention_words>" + LINE);
+			}
+			
+			
+			
 			// // 参加的活动
 			int start_activities = response.indexOf("activity");
-			start_activities = response.indexOf("f-gray", start_activities);
+			start_activities = response.indexOf("参加的活动：",start_attention_cates);
+			start_activities = response.indexOf("<",start_attention_cates);
+			s=response.charAt(start_attention_cates+1);
+			str = String.valueOf(s);
+			if(str.equals("a")){
+			start_activities = response.indexOf("blank", start_activities);
 			start_activities = response.indexOf(">", start_activities);
-			int end_activities = response.indexOf("<", start_activities);
-			String activities = response.substring(start_activities + 1, end_activities);
+			int end_activities = response.indexOf("</div>", start_activities);
+			String activities = response.substring(start_activities + 1, end_activities).replaceAll("<.*?>", "");
+			activities=activities.replaceAll("&nbsp", "");
 			writer.write("<activities>" + activities + "</activities>" + LINE);
+			}else{
+				writer.write("<activities>null</activities>" + LINE);
+			}
+			
+			
+			
 			// 输出用户所在团队
 			int start_team = response.indexOf("team-info");
 			start_team = response.indexOf("f-gray", start_team);
 			start_team = response.indexOf(">", start_team);
 			int end_team = response.indexOf("<", start_team);
 			String team = response.substring(start_team + 1, end_team);
+			if(team.equals("TA还没有加入团队呢!")){
+				writer.write("<teams>null</teams>" + LINE);
+			}else{
 			writer.write("<teams>" + team + "</teams>" + LINE);
+			}
 			writer.write("</user>" + LINE);
 		}
 
